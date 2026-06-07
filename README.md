@@ -4,12 +4,29 @@ This package keeps the torch.hub backbone API from
 `facebookresearch/dinov2` and removes training-only features such as mask
 tokens, xFormers paths, and task-specific heads.
 
+## Torch hub
+
 ```python
 import torch
 
-model = torch.hub.load(".", "dinov2_vits14", source="local", pretrained=False)
+model = torch.hub.load("karimknaebel/dinov2-core", "dinov2_vits14", trust_repo=True, pretrained=True)
 features = model(torch.randn(1, 3, 518, 518))
 cls = features["x_norm_clstoken"]
+```
+
+With registers:
+
+```python
+model = torch.hub.load("karimknaebel/dinov2-core", "dinov2_vits14_reg", trust_repo=True, pretrained=True)
+```
+
+Available backbones:
+
+```text
+dinov2_vits14      dinov2_vits14_reg
+dinov2_vitb14      dinov2_vitb14_reg
+dinov2_vitl14      dinov2_vitl14_reg
+dinov2_vitg14      dinov2_vitg14_reg
 ```
 
 Run the default offline tests with:

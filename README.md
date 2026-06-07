@@ -23,4 +23,5 @@ Optional upstream equivalence tests require network access:
 ```sh
 DINOV2_CORE_TEST_UPSTREAM=1 uv run pytest -m upstream
 DINOV2_CORE_TEST_PRETRAINED=1 uv run pytest -m pretrained
+DINOV2_CORE_TEST_UPSTREAM=1 DINOV2_CORE_TEST_CUDA=1 uv run pytest -m cuda
 ```

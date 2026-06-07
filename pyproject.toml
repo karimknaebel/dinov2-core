@@ -15,11 +15,13 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "numpy>=1.24",
+    "pillow>=10",
     "pytest>=8",
 ]
 
 [tool.pytest.ini_options]
 markers = [
+    "cuda: requires a CUDA device",
     "upstream: compares against facebookresearch/dinov2 through torch.hub",
     "pretrained: downloads pretrained checkpoints",
 ]

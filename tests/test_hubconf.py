@@ -5,7 +5,9 @@ import torch
 
 
 def test_hubconf_exports_only_backbones():
-    spec = importlib.util.spec_from_file_location("hubconf", Path(__file__).parents[1] / "hubconf.py")
+    spec = importlib.util.spec_from_file_location(
+        "hubconf", Path(__file__).parents[1] / "hubconf.py"
+    )
     hubconf = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hubconf)
 

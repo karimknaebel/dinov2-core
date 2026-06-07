@@ -13,7 +13,13 @@ from .hub import (
     dinov2_vits14,
     dinov2_vits14_reg,
 )
-from .vision_transformer import DinoVisionTransformer, vit_base, vit_giant2, vit_large, vit_small
+from .vision_transformer import (
+    DinoVisionTransformer,
+    vit_base,
+    vit_giant2,
+    vit_large,
+    vit_small,
+)
 
 __all__ = [
     "DinoVisionTransformer",

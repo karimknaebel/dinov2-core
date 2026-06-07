@@ -54,14 +54,18 @@ def test_get_intermediate_layers_shapes():
     assert len(outputs) == 2
     assert outputs[0].shape == (2, 4, 32)
 
-    outputs = model.get_intermediate_layers(x, n=[0], reshape=True, return_class_token=True)
+    outputs = model.get_intermediate_layers(
+        x, n=[0], reshape=True, return_class_token=True
+    )
     assert outputs[0][0].shape == (2, 32, 2, 2)
     assert outputs[0][1].shape == (2, 32)
 
 
 def test_get_intermediate_layers_sequence_n_compiles_dynamic():
     model = make_model(num_register_tokens=4)
-    compiled = torch.compile(model.get_intermediate_layers, dynamic=True, fullgraph=True)
+    compiled = torch.compile(
+        model.get_intermediate_layers, dynamic=True, fullgraph=True
+    )
 
     with torch.no_grad():
         for h, w in ((28, 28), (42, 56)):

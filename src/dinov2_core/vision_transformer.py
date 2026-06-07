@@ -54,9 +54,13 @@ class DinoVisionTransformer(nn.Module):
             embed_dim=embed_dim,
         )
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, self.patch_embed.num_patches + 1, embed_dim))
+        self.pos_embed = nn.Parameter(
+            torch.zeros(1, self.patch_embed.num_patches + 1, embed_dim)
+        )
         self.register_tokens = (
-            nn.Parameter(torch.zeros(1, num_register_tokens, embed_dim)) if num_register_tokens else None
+            nn.Parameter(torch.zeros(1, num_register_tokens, embed_dim))
+            if num_register_tokens
+            else None
         )
 
         if drop_path_uniform:
@@ -130,7 +134,10 @@ class DinoVisionTransformer(nn.Module):
         if self.interpolate_offset:
             patch_pos_embed = self._interpolate_with_offset(
                 patch_pos_embed,
-                ((w0 + self.interpolate_offset) / m, (h0 + self.interpolate_offset) / m),
+                (
+                    (w0 + self.interpolate_offset) / m,
+                    (h0 + self.interpolate_offset) / m,
+                ),
                 self.interpolate_antialias,
             )
         else:
@@ -141,7 +148,9 @@ class DinoVisionTransformer(nn.Module):
                 size=(w0, h0),
             )
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
+        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(
+            previous_dtype
+        )
 
     def prepare_tokens(self, x: Tensor) -> Tensor:
         b, _, w, h = x.shape
@@ -149,7 +158,9 @@ class DinoVisionTransformer(nn.Module):
         x = torch.cat((self.cls_token.expand(b, -1, -1), x), dim=1)
         x = x + self.interpolate_pos_encoding(x, w, h)
         if self.register_tokens is not None:
-            x = torch.cat((x[:, :1], self.register_tokens.expand(b, -1, -1), x[:, 1:]), dim=1)
+            x = torch.cat(
+                (x[:, :1], self.register_tokens.expand(b, -1, -1), x[:, 1:]), dim=1
+            )
         return x
 
     def forward_features(self, x: Tensor) -> dict[str, Tensor]:
@@ -164,7 +175,9 @@ class DinoVisionTransformer(nn.Module):
             "x_prenorm": x,
         }
 
-    def _get_intermediate_layers(self, x: Tensor, n: int | Sequence[int] = 1) -> list[Tensor]:
+    def _get_intermediate_layers(
+        self, x: Tensor, n: int | Sequence[int] = 1
+    ) -> list[Tensor]:
         x = self.prepare_tokens(x)
         output = []
         if isinstance(n, int):
@@ -177,7 +190,9 @@ class DinoVisionTransformer(nn.Module):
             x = block(x)
             if i in blocks_to_take:
                 output.append(x)
-        assert len(output) == len(blocks_to_take), f"only {len(output)} / {len(blocks_to_take)} blocks found"
+        assert len(output) == len(blocks_to_take), (
+            f"only {len(output)} / {len(blocks_to_take)} blocks found"
+        )
         return output
 
     def get_intermediate_layers(
@@ -196,7 +211,9 @@ class DinoVisionTransformer(nn.Module):
         if reshape:
             b, _, w, h = x.shape
             outputs = [
-                out.reshape(b, w // self.patch_size, h // self.patch_size, -1).permute(0, 3, 1, 2)
+                out.reshape(b, w // self.patch_size, h // self.patch_size, -1).permute(
+                    0, 3, 1, 2
+                )
                 for out in outputs
             ]
         if return_class_token:
@@ -207,7 +224,9 @@ class DinoVisionTransformer(nn.Module):
         return self.forward_features(x)
 
 
-def vit_small(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs) -> DinoVisionTransformer:
+def vit_small(
+    patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs
+) -> DinoVisionTransformer:
     return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=384,
@@ -220,7 +239,9 @@ def vit_small(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int 
     )
 
 
-def vit_base(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs) -> DinoVisionTransformer:
+def vit_base(
+    patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs
+) -> DinoVisionTransformer:
     return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=768,
@@ -233,7 +254,9 @@ def vit_base(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int =
     )
 
 
-def vit_large(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs) -> DinoVisionTransformer:
+def vit_large(
+    patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs
+) -> DinoVisionTransformer:
     return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1024,
@@ -246,7 +269,9 @@ def vit_large(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int 
     )
 
 
-def vit_giant2(patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs) -> DinoVisionTransformer:
+def vit_giant2(
+    patch_size: int = 16, num_register_tokens: int = 0, in_chans: int = 3, **kwargs
+) -> DinoVisionTransformer:
     return DinoVisionTransformer(
         patch_size=patch_size,
         embed_dim=1536,

@@ -1,4 +1,5 @@
 import torch
+import pytest
 
 from dinov2_core import DinoVisionTransformer
 from dinov2_core.hub import dinov2_vits14
@@ -16,6 +17,8 @@ def make_model(num_register_tokens=0):
         mlp_ratio=2,
         init_values=1.0,
         num_register_tokens=num_register_tokens,
+        interpolate_antialias=bool(num_register_tokens),
+        interpolate_offset=0.0 if num_register_tokens else 0.1,
     )
     model.eval()
     return model
@@ -54,6 +57,25 @@ def test_get_intermediate_layers_shapes():
     outputs = model.get_intermediate_layers(x, n=[0], reshape=True, return_class_token=True)
     assert outputs[0][0].shape == (2, 32, 2, 2)
     assert outputs[0][1].shape == (2, 32)
+
+
+def test_get_intermediate_layers_sequence_n_compiles_dynamic():
+    model = make_model(num_register_tokens=4)
+    compiled = torch.compile(model.get_intermediate_layers, dynamic=True, fullgraph=True)
+
+    with torch.no_grad():
+        for h, w in ((28, 28), (42, 56)):
+            x = torch.randn(2, 3, h, w)
+            outputs = compiled(x, [0], True, True)
+            assert outputs[0][0].shape == (2, 32, h // 14, w // 14)
+            assert outputs[0][1].shape == (2, 32)
+
+
+def test_get_intermediate_layers_rejects_duplicate_indices():
+    model = make_model()
+
+    with pytest.raises(AssertionError, match="block indices must be unique"):
+        model.get_intermediate_layers(torch.randn(2, 3, 28, 28), n=[0, 0])
 
 
 def test_swiglu_hidden_features_sizing():

@@ -84,6 +84,21 @@ class DinoVisionTransformer(nn.Module):
         self.head = nn.Identity()
         self.init_weights()
 
+    @staticmethod
+    @torch.compiler.disable
+    def _interpolate_with_offset(
+        patch_pos_embed: Tensor,
+        scale_factor: tuple[float, float],
+        interpolate_antialias: bool,
+    ) -> Tensor:
+        # Keep upstream's offset scale_factor behavior without Dynamo specializing on each image size.
+        return nn.functional.interpolate(
+            patch_pos_embed,
+            mode="bicubic",
+            antialias=interpolate_antialias,
+            scale_factor=scale_factor,
+        )
+
     def init_weights(self) -> None:
         def init_weights_vit_timm(module: nn.Module) -> None:
             if isinstance(module, nn.Linear):
@@ -111,18 +126,20 @@ class DinoVisionTransformer(nn.Module):
         h0 = h // self.patch_size
         m = int(math.sqrt(n))
         assert n == m * m
-        kwargs = {}
+        patch_pos_embed = patch_pos_embed.reshape(1, m, m, dim).permute(0, 3, 1, 2)
         if self.interpolate_offset:
-            kwargs["scale_factor"] = ((w0 + self.interpolate_offset) / m, (h0 + self.interpolate_offset) / m)
+            patch_pos_embed = self._interpolate_with_offset(
+                patch_pos_embed,
+                ((w0 + self.interpolate_offset) / m, (h0 + self.interpolate_offset) / m),
+                self.interpolate_antialias,
+            )
         else:
-            kwargs["size"] = (w0, h0)
-        patch_pos_embed = nn.functional.interpolate(
-            patch_pos_embed.reshape(1, m, m, dim).permute(0, 3, 1, 2),
-            mode="bicubic",
-            antialias=self.interpolate_antialias,
-            **kwargs,
-        )
-        assert (w0, h0) == patch_pos_embed.shape[-2:]
+            patch_pos_embed = nn.functional.interpolate(
+                patch_pos_embed,
+                mode="bicubic",
+                antialias=self.interpolate_antialias,
+                size=(w0, h0),
+            )
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
         return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
 
@@ -150,7 +167,12 @@ class DinoVisionTransformer(nn.Module):
     def _get_intermediate_layers(self, x: Tensor, n: int | Sequence[int] = 1) -> list[Tensor]:
         x = self.prepare_tokens(x)
         output = []
-        blocks_to_take = range(len(self.blocks) - n, len(self.blocks)) if isinstance(n, int) else n
+        if isinstance(n, int):
+            blocks_to_take = set(range(len(self.blocks) - n, len(self.blocks)))
+        else:
+            # Dynamo handles set membership here better than tuple/list membership with dynamic shapes.
+            blocks_to_take = set(n)
+            assert len(blocks_to_take) == len(n), "block indices must be unique"
         for i, block in enumerate(self.blocks):
             x = block(x)
             if i in blocks_to_take:

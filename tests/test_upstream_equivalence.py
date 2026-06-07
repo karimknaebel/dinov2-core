@@ -1,5 +1,6 @@
 import os
 import gc
+import functools
 from io import BytesIO
 from urllib.request import urlopen
 
@@ -23,6 +24,7 @@ from dinov2_core.hub import (
 
 pytestmark = pytest.mark.upstream
 
+assert_equal = functools.partial(torch.testing.assert_close, rtol=0, atol=0)
 FEATURE_KEYS = (
     "x_norm_clstoken",
     "x_norm_regtokens",
@@ -30,6 +32,7 @@ FEATURE_KEYS = (
     "x_prenorm",
 )
 REAL_IMAGE_URL = "https://github.com/karimknaebel/storage/releases/download/example-images/pipeline-cat-chonk.jpeg"
+UPSTREAM_REPO = "facebookresearch/dinov2:7764ea0f912e53c92e82eb78a2a1631e92725fc8"
 COMMON_BACKBONES = [
     ("dinov2_vits14", dinov2_vits14),
     ("dinov2_vitb14", dinov2_vitb14),
@@ -62,7 +65,7 @@ BACKBONES = COMMON_BACKBONES + GIANT_BACKBONES
 def load_upstream(name, pretrained):
     os.environ["XFORMERS_DISABLED"] = "1"
     return torch.hub.load(
-        "facebookresearch/dinov2",
+        UPSTREAM_REPO,
         name,
         pretrained=pretrained,
         trust_repo=True,
@@ -117,12 +120,8 @@ def test_random_initialized_outputs_match_upstream(name, ours_fn):
         upstream_features = detach_features(upstream.forward_features(x))
 
     for key in FEATURE_KEYS:
-        torch.testing.assert_close(
-            ours_forward[key], upstream_forward[key], rtol=1e-5, atol=2e-5
-        )
-        torch.testing.assert_close(
-            ours_features[key], upstream_features[key], rtol=1e-5, atol=2e-5
-        )
+        assert_equal(ours_forward[key], upstream_forward[key])
+        assert_equal(ours_features[key], upstream_features[key])
 
 
 @pytest.mark.skipif(
@@ -138,7 +137,7 @@ def test_initialized_weights_match_upstream(name, ours_fn):
 
     assert set(ours) == set(upstream) - {"mask_token"}
     for key, value in ours.items():
-        torch.testing.assert_close(value, upstream[key])
+        assert_equal(value, upstream[key])
 
 
 @pytest.mark.pretrained
@@ -155,9 +154,7 @@ def test_pretrained_vits14_outputs_match_upstream():
     ours_forward = ours(x)
     upstream_forward = upstream(x, is_training=True)
     for key in FEATURE_KEYS:
-        torch.testing.assert_close(
-            ours_forward[key], upstream_forward[key], rtol=1e-5, atol=2e-5
-        )
+        assert_equal(ours_forward[key], upstream_forward[key])
 
 
 @pytest.mark.cuda
@@ -194,6 +191,4 @@ def test_cuda_real_image_outputs_match_upstream(name, ours_fn):
         upstream_forward = detach_features(upstream(x, is_training=True))
 
     for key in FEATURE_KEYS:
-        torch.testing.assert_close(
-            ours_forward[key], upstream_forward[key], rtol=1e-4, atol=1e-4
-        )
+        assert_equal(ours_forward[key], upstream_forward[key])

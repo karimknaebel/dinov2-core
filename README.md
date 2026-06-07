@@ -1,8 +1,7 @@
-Minimal DINOv2 backbones for downstream fine-tuning.
-
-This package keeps the torch.hub backbone API from
-`facebookresearch/dinov2` and removes training-only features such as mask
-tokens, xFormers paths, and task-specific heads.
+Minimal DINOv2 backbones for downstream fine-tuning, keeping the torch.hub API
+from `facebookresearch/dinov2` while dropping mask tokens, xFormers paths and
+warnings, and task-specific heads. The backbones support
+`torch.compile(dynamic=True)` for varying input sizes.
 
 ## Torch hub
 
@@ -29,13 +28,13 @@ dinov2_vitl14      dinov2_vitl14_reg
 dinov2_vitg14      dinov2_vitg14_reg
 ```
 
-Run the default offline tests with:
+## Tests
 
 ```sh
 uv run pytest
 ```
 
-Optional upstream equivalence tests require network access:
+Optional upstream equivalence tests:
 
 ```sh
 DINOV2_CORE_TEST_UPSTREAM=1 uv run pytest -m upstream

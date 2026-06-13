@@ -1,6 +1,6 @@
 [project]
 name = "dinov2-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Minimal DINOv2 backbones for downstream fine-tuning"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"

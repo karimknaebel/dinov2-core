@@ -63,9 +63,7 @@ def test_get_intermediate_layers_shapes():
 
 def test_get_intermediate_layers_sequence_n_compiles_dynamic():
     model = make_model(num_register_tokens=4)
-    compiled = torch.compile(
-        model.get_intermediate_layers, dynamic=True, fullgraph=True
-    )
+    compiled = torch.compile(model.get_intermediate_layers, dynamic=True)
 
     with torch.no_grad():
         for h, w in ((28, 28), (42, 56)):
@@ -80,6 +78,41 @@ def test_get_intermediate_layers_rejects_duplicate_indices():
 
     with pytest.raises(AssertionError, match="block indices must be unique"):
         model.get_intermediate_layers(torch.randn(2, 3, 28, 28), n=[0, 0])
+
+
+def test_register_antialias_interpolation_compiles_backward():
+    model = make_model(num_register_tokens=4).train()
+    compiled = torch.compile(
+        lambda x: model.get_intermediate_layers(x, [0], True, True),
+        dynamic=True,
+    )
+
+    x = torch.randn(2, 3, 42, 56, requires_grad=True)
+    outputs = compiled(x)
+    loss = outputs[0][0].square().mean() + outputs[0][1].square().mean()
+    loss.backward()
+
+    assert x.grad is not None
+
+
+@pytest.mark.parametrize("num_register_tokens", [0, 4])
+def test_compiles_forward_and_intermediates_backward(num_register_tokens):
+    model = make_model(num_register_tokens=num_register_tokens).train()
+
+    def loss_fn(x):
+        features = model(x)
+        intermediates = model.get_intermediate_layers(x, [0], True, True)
+        return (
+            features["x_norm_clstoken"].square().mean()
+            + features["x_norm_patchtokens"].square().mean()
+            + intermediates[0][0].square().mean()
+            + intermediates[0][1].square().mean()
+        )
+
+    x = torch.randn(2, 3, 42, 56, requires_grad=True)
+    torch.compile(loss_fn)(x).backward()
+
+    assert x.grad is not None
 
 
 def test_swiglu_hidden_features_sizing():

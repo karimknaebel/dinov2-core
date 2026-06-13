@@ -90,17 +90,19 @@ class DinoVisionTransformer(nn.Module):
 
     @staticmethod
     @torch.compiler.disable
-    def _interpolate_with_offset(
+    def _interpolate_pos_embed(
         patch_pos_embed: Tensor,
-        scale_factor: tuple[float, float],
         interpolate_antialias: bool,
+        scale_factor: tuple[float, float] | None = None,
+        size: tuple[int, int] | None = None,
     ) -> Tensor:
-        # Keep upstream's offset scale_factor behavior without Dynamo specializing on each image size.
+        # Keep positional interpolation out of Dynamo's symbolic shape tracing.
         return nn.functional.interpolate(
             patch_pos_embed,
             mode="bicubic",
             antialias=interpolate_antialias,
             scale_factor=scale_factor,
+            size=size,
         )
 
     def init_weights(self) -> None:
@@ -132,19 +134,18 @@ class DinoVisionTransformer(nn.Module):
         assert n == m * m
         patch_pos_embed = patch_pos_embed.reshape(1, m, m, dim).permute(0, 3, 1, 2)
         if self.interpolate_offset:
-            patch_pos_embed = self._interpolate_with_offset(
+            patch_pos_embed = self._interpolate_pos_embed(
                 patch_pos_embed,
-                (
+                self.interpolate_antialias,
+                scale_factor=(
                     (w0 + self.interpolate_offset) / m,
                     (h0 + self.interpolate_offset) / m,
                 ),
-                self.interpolate_antialias,
             )
         else:
-            patch_pos_embed = nn.functional.interpolate(
+            patch_pos_embed = self._interpolate_pos_embed(
                 patch_pos_embed,
-                mode="bicubic",
-                antialias=self.interpolate_antialias,
+                self.interpolate_antialias,
                 size=(w0, h0),
             )
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
